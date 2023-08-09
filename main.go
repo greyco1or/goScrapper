@@ -34,10 +34,12 @@ func getPage(page int) {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	checkErr(err)
 
-	searchCards := doc.Find("li.list-post")
-
+	searchCards := doc.Find(".lists .clear")
+	fmt.Println("get card")
 	searchCards.Each(func(i int, s *goquery.Selection) {
-		s.Attr(".data-gno")
+		fmt.Println()
+		id, _ := s.Attr("data-gno")
+		fmt.Println("id: ", id)
 	})
 
 }
