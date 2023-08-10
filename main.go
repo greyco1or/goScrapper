@@ -14,12 +14,19 @@ var (
 	javaLang string = "java&tabType=recruit"
 )
 
+type extractedJob struct {
+	id       string
+	title    string
+	location string
+	lang     string
+	sort     string
+}
+
 func main() {
 	totalPages := getPageNumber()
 	for i := 0; i < totalPages; i++ {
 		getPage(i)
 	}
-	fmt.Println(totalPages)
 }
 
 func getPage(page int) {
@@ -34,14 +41,16 @@ func getPage(page int) {
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	checkErr(err)
 
-	searchCards := doc.Find(".lists .clear")
+	searchCards := doc.Find(".lists")
 	fmt.Println("get card")
-	searchCards.Each(func(i int, s *goquery.Selection) {
-		fmt.Println()
-		id, _ := s.Attr("data-gno")
-		fmt.Println("id: ", id)
+	searchCards.Each(func(i int, card *goquery.Selection) {
+		id, _ := card.Find(".list-post").Attr("data-gno")
+		if id != "false" && id != "" {
+			fmt.Println(id)
+			info := card.Find("data-gainfo")
+			//fmt.Println(info.Find())
+		}
 	})
-
 }
 
 func getPageNumber() int {
