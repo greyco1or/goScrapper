@@ -43,13 +43,19 @@ func getPage(page int) {
 
 	searchCards := doc.Find(".lists")
 	fmt.Println("get card")
-	searchCards.Each(func(i int, card *goquery.Selection) {
-		id, _ := card.Find(".list-post").Attr("data-gno")
-		if id != "false" && id != "" {
-			fmt.Println(id)
-			info := card.Find("data-gainfo")
-			//fmt.Println(info.Find())
+	searchCards.Each(func(i int, s *goquery.Selection) {
+		card := s.Find(".list-post")
+		id, _ := card.Attr("data-gno")
+		if id == "false" && id == "" {
+			return
 		}
+		fmt.Println(id)
+		infoData, _ := card.Attr("data-gainfo")
+		if infoData == "false" && infoData == "" {
+			return
+		}
+		fmt.Println(infoData)
+
 	})
 }
 
