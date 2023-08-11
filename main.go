@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 var (
@@ -14,12 +16,17 @@ var (
 	javaLang string = "java&tabType=recruit"
 )
 
-type extractedJob struct {
-	id       string
-	title    string
-	location string
-	lang     string
-	sort     string
+type JsonData struct {
+	ID          string `json:"dimension42"`
+	Title       string `json:"dimension45"`
+	Location    string `json:"dimension46"`
+	Company     string `json:"dimension48"`
+	Sort        string `json:"dimension43"`
+	Work        string `json:"dimension44"`
+	Dimension65 string `json:"dimension65"`
+	Dimension66 string `json:"dimension66"`
+	Dimension70 string `json:"dimension70"`
+	Dimension47 string `json:"dimension47"`
 }
 
 func main() {
@@ -42,21 +49,28 @@ func getPage(page int) {
 	checkErr(err)
 
 	searchCards := doc.Find(".lists")
-	fmt.Println("get card")
+	fmt.Println("GET CARD")
 	searchCards.Each(func(i int, s *goquery.Selection) {
-		card := s.Find(".list-post")
-		id, _ := card.Attr("data-gno")
-		if id == "false" && id == "" {
-			return
-		}
-		fmt.Println(id)
-		infoData, _ := card.Attr("data-gainfo")
-		if infoData == "false" && infoData == "" {
-			return
-		}
-		fmt.Println(infoData)
-
+		extractJob(s)
 	})
+}
+
+func extractJob(s *goquery.Selection) {
+	card := s.Find(".list-post")
+	id, _ := card.Attr("data-gno")
+	if id == "" {
+		return
+	}
+	infoData, _ := card.Attr("data-gainfo")
+	if infoData == "" {
+		return
+	}
+	var jsonData JsonData
+	err := json.Unmarshal([]byte(infoData), &jsonData)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Printf("jsonData: %+v\n", jsonData)
 }
 
 func getPageNumber() int {
@@ -87,4 +101,8 @@ func checkCode(res *http.Response) {
 	if res.StatusCode != 200 {
 		log.Fatalln("Request failed with status code: ", res.StatusCode)
 	}
+}
+
+func cleanString(str string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(str)), " ")
 }
