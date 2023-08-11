@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -34,16 +36,38 @@ type extractJobData struct {
 func main() {
 	var jobs []extractJobData
 	totalPages := getPageNumber()
-	for i := 0; i < totalPages; i++ {
+	for i := 1; i < totalPages+1; i++ {
 		extractedJobs := getPage(i)
 		jobs = append(jobs, extractedJobs...)
 	}
-	fmt.Printf("jobs: %+v\n", jobs)
+	writeJobs(jobs)
+	fmt.Printf("Done, Writing on csv files: %v 개\n", len(jobs))
+}
+
+func writeJobs(jobs []extractJobData) {
+	file, err := os.Create("jobs.csv")
+	checkErr(err)
+
+	w := csv.NewWriter(file)
+
+	defer w.Flush()
+
+	headers := []string{"ID", "Title", "Location", "Company", "Sort", "Work"}
+
+	wErr := w.Write(headers)
+	checkErr(wErr)
+
+	for _, job := range jobs {
+		jobSlice := []string{"https://www.jobkorea.co.kr/Recruit/GI_Read/" + job.ID, job.Title, job.Location, job.Company, job.Sort, job.Work}
+		jwErr := w.Write(jobSlice)
+		checkErr(jwErr)
+	}
 }
 
 func getPage(page int) []extractJobData {
 	var jobs []extractJobData
-	pageURL := baseURL + javaLang + "&Page_No=" + strconv.Itoa(page+1)
+	c := make(chan extractJobData)
+	pageURL := baseURL + javaLang + "&Page_No=" + strconv.Itoa(page)
 	fmt.Println("Requesting page: ", pageURL)
 	res, err := http.Get(pageURL)
 	checkErr(err)
@@ -57,25 +81,30 @@ func getPage(page int) []extractJobData {
 	searchCards := doc.Find(".lists .clear .list-post")
 	fmt.Println("GET CARD")
 	searchCards.Each(func(i int, card *goquery.Selection) {
-		job, _ := extractJob(card)
+		go extractJob(card, c)
+		//fmt.Printf("jobs: %+v\n", jobs)
+	})
+
+	for i := 0; i < searchCards.Length(); i++ {
+		job := <-c
 		if job.ID == "" {
-			return
+			continue
 		}
 		jobs = append(jobs, job)
-		fmt.Printf("jobs: %+v\n", jobs)
-	})
+	}
+	fmt.Printf("jobs: %+v\n", jobs)
 	fmt.Println("GET CARD OVER")
 	return jobs
 }
 
-func extractJob(card *goquery.Selection) (extractJobData, error) {
+func extractJob(card *goquery.Selection, c chan<- extractJobData) {
 	id, _ := card.Attr("data-gno")
 	if id == "" {
-		return extractJobData{}, fmt.Errorf("id is empty")
+		return
 	}
 	infoData, _ := card.Attr("data-gainfo")
 	if infoData == "" {
-		return extractJobData{}, fmt.Errorf("infoData is empty")
+		return
 	}
 	var jsonData extractJobData
 	err := json.Unmarshal([]byte(infoData), &jsonData)
@@ -83,7 +112,7 @@ func extractJob(card *goquery.Selection) (extractJobData, error) {
 		log.Fatalln(err)
 	}
 	fmt.Printf("jsonData: %+v\n", jsonData)
-	return jsonData, nil
+	c <- jsonData
 }
 
 func getPageNumber() int {
