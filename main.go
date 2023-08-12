@@ -81,7 +81,7 @@ func getPage(page int) []extractJobData {
 	searchCards := doc.Find(".lists .clear .list-post")
 	fmt.Println("GET CARD")
 	searchCards.Each(func(i int, card *goquery.Selection) {
-		go extractJob(card, c)
+		go extractJob(card, c, i)
 		//fmt.Printf("jobs: %+v\n", jobs)
 	})
 
@@ -91,19 +91,23 @@ func getPage(page int) []extractJobData {
 			continue
 		}
 		jobs = append(jobs, job)
+		fmt.Printf("jobs: %+v\n", jobs)
 	}
-	fmt.Printf("jobs: %+v\n", jobs)
-	fmt.Println("GET CARD OVER")
+	//fmt.Printf("jobs: %+v\n", jobs)
+	//fmt.Println("GET CARD OVER")
 	return jobs
 }
 
-func extractJob(card *goquery.Selection, c chan<- extractJobData) {
+func extractJob(card *goquery.Selection, c chan<- extractJobData, i int) {
+	//fmt.Println("EXTRACT JOB METHOD START", i)
 	id, _ := card.Attr("data-gno")
 	if id == "" {
+		c <- extractJobData{}
 		return
 	}
 	infoData, _ := card.Attr("data-gainfo")
 	if infoData == "" {
+		c <- extractJobData{}
 		return
 	}
 	var jsonData extractJobData
