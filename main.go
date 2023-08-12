@@ -35,36 +35,21 @@ type extractJobData struct {
 
 func main() {
 	var jobs []extractJobData
+	c := make(chan []extractJobData)
 	totalPages := getPageNumber()
 	for i := 1; i < totalPages+1; i++ {
-		extractedJobs := getPage(i)
+		go getPage(i, c)
+	}
+
+	for i := 1; i < totalPages+1; i++ {
+		extractedJobs := <-c
 		jobs = append(jobs, extractedJobs...)
 	}
 	writeJobs(jobs)
 	fmt.Printf("Done, Writing on csv files: %v 개\n", len(jobs))
 }
 
-func writeJobs(jobs []extractJobData) {
-	file, err := os.Create("jobs.csv")
-	checkErr(err)
-
-	w := csv.NewWriter(file)
-
-	defer w.Flush()
-
-	headers := []string{"ID", "Title", "Location", "Company", "Sort", "Work"}
-
-	wErr := w.Write(headers)
-	checkErr(wErr)
-
-	for _, job := range jobs {
-		jobSlice := []string{"https://www.jobkorea.co.kr/Recruit/GI_Read/" + job.ID, job.Title, job.Location, job.Company, job.Sort, job.Work}
-		jwErr := w.Write(jobSlice)
-		checkErr(jwErr)
-	}
-}
-
-func getPage(page int) []extractJobData {
+func getPage(page int, mainC chan<- []extractJobData) {
 	var jobs []extractJobData
 	c := make(chan extractJobData)
 	pageURL := baseURL + javaLang + "&Page_No=" + strconv.Itoa(page)
@@ -80,9 +65,8 @@ func getPage(page int) []extractJobData {
 
 	searchCards := doc.Find(".lists .clear .list-post")
 	fmt.Println("GET CARD")
-	searchCards.Each(func(i int, card *goquery.Selection) {
-		go extractJob(card, c, i)
-		//fmt.Printf("jobs: %+v\n", jobs)
+	searchCards.Each(func(i int, s *goquery.Selection) {
+		go extractJob(s, c)
 	})
 
 	for i := 0; i < searchCards.Length(); i++ {
@@ -91,15 +75,13 @@ func getPage(page int) []extractJobData {
 			continue
 		}
 		jobs = append(jobs, job)
-		fmt.Printf("jobs: %+v\n", jobs)
+		fmt.Println("GET PAGE FINISH")
+		//fmt.Printf("jobs: %+v\n", jobs)
 	}
-	//fmt.Printf("jobs: %+v\n", jobs)
-	//fmt.Println("GET CARD OVER")
-	return jobs
+	mainC <- jobs
 }
 
-func extractJob(card *goquery.Selection, c chan<- extractJobData, i int) {
-	//fmt.Println("EXTRACT JOB METHOD START", i)
+func extractJob(card *goquery.Selection, c chan<- extractJobData) {
 	id, _ := card.Attr("data-gno")
 	if id == "" {
 		c <- extractJobData{}
@@ -115,7 +97,8 @@ func extractJob(card *goquery.Selection, c chan<- extractJobData, i int) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Printf("jsonData: %+v\n", jsonData)
+	//fmt.Printf("jsonData: %+v\n", jsonData)
+	fmt.Println("EXTRACT JOB FINISH")
 	c <- jsonData
 }
 
@@ -146,6 +129,26 @@ func checkErr(err error) {
 func checkCode(res *http.Response) {
 	if res.StatusCode != 200 {
 		log.Fatalln("Request failed with status code: ", res.StatusCode)
+	}
+}
+
+func writeJobs(jobs []extractJobData) {
+	file, err := os.Create("jobs.csv")
+	checkErr(err)
+
+	w := csv.NewWriter(file)
+
+	defer w.Flush()
+
+	headers := []string{"ID", "Title", "Location", "Company", "Sort", "Work"}
+
+	wErr := w.Write(headers)
+	checkErr(wErr)
+
+	for _, job := range jobs {
+		jobSlice := []string{"https://www.jobkorea.co.kr/Recruit/GI_Read/" + job.ID, job.Title, job.Location, job.Company, job.Sort, job.Work}
+		jwErr := w.Write(jobSlice)
+		checkErr(jwErr)
 	}
 }
 
