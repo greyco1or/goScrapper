@@ -31,13 +31,13 @@ var (
 	baseURL string = "https://www.jobkorea.co.kr/Search/?stext="
 )
 
-func Scrape(lang string) {
+func Scrape(term string) {
 	var jobs []extractJobData
 
 	c := make(chan []extractJobData)
-	totalPages := getPageNumber(lang)
+	totalPages := getPageNumber(term)
 	for i := 1; i < totalPages+1; i++ {
-		go getPage(i, lang, c)
+		go getPage(i, term, c)
 	}
 
 	for i := 1; i < totalPages+1; i++ {
@@ -48,10 +48,10 @@ func Scrape(lang string) {
 	fmt.Printf("Done, Writing on csv files: %v 개\n", len(jobs))
 }
 
-func getPage(page int, lang string, mainC chan<- []extractJobData) {
+func getPage(page int, term string, mainC chan<- []extractJobData) {
 	var jobs []extractJobData
 	c := make(chan extractJobData)
-	pageURL := baseURL + lang + "&Page_No=" + strconv.Itoa(page)
+	pageURL := baseURL + term + "&Page_No=" + strconv.Itoa(page)
 	fmt.Println("Requesting page: ", pageURL)
 	res, err := http.Get(pageURL)
 	checkErr(err)
@@ -63,7 +63,7 @@ func getPage(page int, lang string, mainC chan<- []extractJobData) {
 	checkErr(err)
 
 	searchCards := doc.Find(".lists .clear .list-post")
-	fmt.Println("GET CARD")
+	//fmt.Println("GET CARD")
 	searchCards.Each(func(i int, s *goquery.Selection) {
 		go extractJob(s, c)
 	})
@@ -74,7 +74,7 @@ func getPage(page int, lang string, mainC chan<- []extractJobData) {
 			continue
 		}
 		jobs = append(jobs, job)
-		fmt.Println("GET PAGE FINISH")
+		//fmt.Println("GET PAGE FINISH")
 		//fmt.Printf("jobs: %+v\n", jobs)
 	}
 	mainC <- jobs
@@ -97,13 +97,13 @@ func extractJob(card *goquery.Selection, c chan<- extractJobData) {
 		log.Fatalln(err)
 	}
 	//fmt.Printf("jsonData: %+v\n", jsonData)
-	fmt.Println("EXTRACT JOB FINISH")
+	//fmt.Println("EXTRACT JOB FINISH")
 	c <- jsonData
 }
 
-func getPageNumber(lang string) int {
+func getPageNumber(term string) int {
 	pages := 0
-	res, err := http.Get(baseURL + lang)
+	res, err := http.Get(baseURL + term)
 	checkErr(err)
 	checkCode(res)
 
@@ -151,6 +151,6 @@ func writeJobs(jobs []extractJobData) {
 	}
 }
 
-func cleanString(str string) string {
+func CleanString(str string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(str)), " ")
 }
