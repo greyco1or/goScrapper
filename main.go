@@ -4,7 +4,12 @@ import (
 	"github.com/greyco1or/goScrapper/scrapper"
 	"github.com/labstack/echo"
 	"net/http"
+	"os"
 	"strings"
+)
+
+const (
+	fileName string = "jobs.csv"
 )
 
 func helloWorld(c echo.Context) error {
@@ -16,9 +21,10 @@ func handleHome(c echo.Context) error {
 }
 
 func handleScrape(c echo.Context) error {
+	defer os.Remove(fileName)
 	term := strings.ToLower(scrapper.CleanString(c.FormValue("term")))
 	scrapper.Scrape(term)
-	return c.Attachment("jobs.csv", "job.csv")
+	return c.Attachment(fileName, fileName)
 }
 
 func main() {
